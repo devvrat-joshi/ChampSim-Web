@@ -197,3 +197,25 @@ def hybridmake(request):
     pred2 = preds[preds.find("^^&&")+4:]
     ans = hybridizeit.hybridizing_two(pred1,pred2)
     return JsonResponse({"done":ans})
+
+
+code_of_the_predictor = ""
+
+@csrf_exempt
+def code(request):
+    global code_of_the_predictor
+    code_of_the_predictor = request.body.decode()
+    return JsonResponse({"code":"BP_editor_read_write"})
+
+def codeit(request):
+    file = open("/mnt/c/Studies/projects/COA/champsim-master/branch/"+code_of_the_predictor[:-4]+".bpred","r")
+    givecode = "".join(file.readlines())
+    return render(request,"code.html",{"code":givecode,"predictor":code_of_the_predictor[:-4]})
+
+@csrf_exempt
+def saveit(request):
+    code = request.body.decode()
+    file = open("/mnt/c/Studies/projects/COA/champsim-master/branch/"+code_of_the_predictor[:-4]+".bpred","w")
+    file.write(code)
+    file.close()
+    return JsonResponse({"done":1})

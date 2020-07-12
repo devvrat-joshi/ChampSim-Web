@@ -26,4 +26,8 @@ urlpatterns = [
     path('running',views.running,name="running"),
     path('Hybridize_Predictors_At_Ease',views.hybridize,name="Hybridize_Predictors_At_Ease"),
     path('hybridmake',views.hybridmake,name="hybridmake"),
+    path('code',views.code,name="code"),
+    path('BP_editor_read_write',views.code,name="BP_editor_read_write"),
+    path('codeit',views.codeit,name="codeit"),
+    path('saveit',views.saveit,name="saveit"),
 ]

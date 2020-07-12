@@ -15,15 +15,12 @@
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <a class="navbar-brand" href="#">ChampSim Branch Predictor Editor</a>
+        <a class="navbar-brand" href="#">ChampSim Branch Predictor Editor: {{predictor}}</a>
       
         <div class="collapse navbar-collapse" id="navbarColor01">
           <ul class="navbar-nav mr-auto">
           </ul>
-          <form method="POST" action="newpred" class="form-inline my-2 my-lg-0">
-            <input class="form-control mr-sm-2" type="text" placeholder="Branch Predictor Name">
-            <button class="btn btn-primary" type="submit" onclick="window.close()">Add</button>
-          </form>
+            <button class="btn btn-primary" type="submit" onclick="saveit()">Save</button>
         </div>
       </nav>
       <div class="sendthis">
@@ -31,23 +28,8 @@
       </div>
       <form action="code" method="post">
         {% csrf_token %}
-            <textarea id="editor" name="ed1">
-#include "ooo_cpu.h"
-
-void O3_CPU::initialize_branch_predictor(){
-  //initialize your predictor here
-}
-
-uint8_t O3_CPU::predict_branch(uint64_t ip){
-  uint8_t prediction;
-  // code your prediction logic here
-  return prediction;
-}
-
-void O3_CPU::last_branch_result(uint64_t ip, uint8_t taken, uint64_t target)
-{
-  // update your predictor with the results
-}
+            <textarea id="editor" name="ed1" >
+{{code}}
 </textarea>
       </form>
       
@@ -58,7 +40,22 @@ void O3_CPU::last_branch_result(uint64_t ip, uint8_t taken, uint64_t target)
             lineNumbers: true,
             autoCloseBrackets: true
         });
-        editor.setSize("1280","553");
+        editor.setSize("100%","100%");
+
+        var code;
+        function saveit(){
+            code = document.getElementById("editor").innerHTML;
+            console.log(code);
+            const xhr = new XMLHttpRequest();
+            xhr.open("post","saveit",true);
+            xhr.getResponseHeader("Content-type","application/txt");
+            xhr.send(code);
+            xhr.onload = function(){
+                if(this.status==200){
+                    console.log("saved");
+                }
+            }
+        }
     </script>
     <script type="text/javascript"> 
         window.addEventListener('beforeunload', function (e) { 

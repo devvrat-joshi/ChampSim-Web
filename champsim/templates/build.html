@@ -5,11 +5,14 @@
     <title>ChampSim</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link rel="stylesheet" href="{% static 'bootstrap.min.css' %}">
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script> 
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script> 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/gh/StephanWagner/jBox@v1.2.0/dist/jBox.all.min.js"></script>
     <link href="https://cdn.jsdelivr.net/gh/StephanWagner/jBox@v1.2.0/dist/jBox.all.min.css" rel="stylesheet">
-    
-    <link rel="stylesheet" href="{% static 'bootstrap.min.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <style>
       #myProgress {
@@ -74,8 +77,8 @@
         {% for i in branch_preds %}
         {%if i.builded == build%}
           <tr class="table-success" id="{{i.name}}class">
-            <th scope="row">{{i.name}}</th>
-            <td id="{{i.name}}time">{{i.time}}</td>
+            <th scope="row"> <div id="{{i.name}}code" onclick="code(this.id);" style="cursor: pointer">{{i.name}}</div></th>
+            <td>{{i.time}}</div></td>
             <td>{{i.traces}}</td>
             <td ><span class="tooltip" data-jbox-title="{{i.name}} : tracewise breakup" data-jbox-content='{% for j in i.traceslist%}{{j.first}} &nbsp&nbsp&nbsp&nbsp&nbsp  <span style="text-align: justify;float: right;"">{{j.second}}</span><br>{%endfor%}'>{{i.avg_accuracy}}%</span>{{i.avg_accuracy}}%</td>
             <td>
@@ -86,7 +89,7 @@
           </tr>
         {% else %}
         <tr class="table-danger" id="{{i.name}}class">
-            <th scope="row">{{i.name}}</th>
+            <th scope="row"> <div id="{{i.name}}code" onclick="code(this.id);" style="cursor: pointer">{{i.name}}</div></th>
             <td id="{{i.name}}time">Unbuilded</td>
             <td>0</td>
             <td>%</td>
@@ -106,6 +109,18 @@
       </table> 
 
       <script>
+        function code(idof){
+          const xhr = new XMLHttpRequest();
+          xhr.open("post","code",true);
+          xhr.getResponseHeader("Content-type","application/txt")
+          xhr.send(idof)
+          xhr.onload = function(){
+            if(this.status==200){
+              console.log(this.responseText);
+              window.open("/codeit")
+            }
+          }
+        }
         function build(idof){
           window.scrollTo(0, 0); 
           console.log(idof);

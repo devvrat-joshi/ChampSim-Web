@@ -60,11 +60,11 @@ sources for you to plagiarize.
 
 // maximum history length
 
-#define MAXHIST	128
+#define MAXHIST	232
 
 // minimum history length (for table 1; table 0 is biases)
 
-#define MINHIST	8
+#define MINHIST	3
 
 // speed for dynamic threshold setting
 
@@ -72,7 +72,7 @@ sources for you to plagiarize.
 
 // geometric global history lengths
 
-int history_lengths[NTABLES] = { 8,16,24,32,40,48,56,64,72,80,88,96,104,112,120,128 };
+int history_lengths[NTABLES] = { 0, 3, 4, 6, 8, 10, 14, 19, 26, 36, 49, 67, 91, 125, 170, MAXHIST };
 
 // 12-bit indices for the tables
 

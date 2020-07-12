@@ -270,7 +270,7 @@ uint8_t perceptronfirst_predict_branch(uint64_t ip)
     return u[cpu]->prediction;
 }
 
-void perceptronfirst_last_branch_result(uint64_t ip, uint8_t taken,uint8_t target)
+void perceptronfirst_last_branch_result(uint64_t ip, uint8_t taken)
 {
     int cpu = 0;
     int	

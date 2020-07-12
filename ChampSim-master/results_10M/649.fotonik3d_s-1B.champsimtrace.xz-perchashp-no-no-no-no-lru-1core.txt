@@ -8,27 +8,27 @@ LLC sets: 2048
 LLC ways: 16
 Off-chip DRAM Size: 4096 MB Channels: 1 Width: 64-bit Data Rate: 3200 MT/s
 
-CPU 0 runs /mnt/c/Studies/projects/COA/ChampSim-master/dpc3_traces/649.fotonik3d_s-1B.champsimtrace.xz
+CPU 0 runs /mnt/c/Studies/projects/COA/champsim-master/dpc3_traces/649.fotonik3d_s-1B.champsimtrace.xz
 
-Warmup complete CPU 0 instructions: 1000003 cycles: 400927 (Simulation time: 0 hr 0 min 2 sec) 
+Warmup complete CPU 0 instructions: 1000003 cycles: 400928 (Simulation time: 0 hr 0 min 7 sec) 
 
-Heartbeat CPU 0 instructions: 10000001 cycles: 7837234 heartbeat IPC: 1.27596 cumulative IPC: 1.21028 (Simulation time: 0 hr 0 min 22 sec) 
-Finished CPU 0 instructions: 10000000 cycles: 8261750 cumulative IPC: 1.2104 (Simulation time: 0 hr 0 min 24 sec) 
+Heartbeat CPU 0 instructions: 10000001 cycles: 7836939 heartbeat IPC: 1.27601 cumulative IPC: 1.21033 (Simulation time: 0 hr 1 min 17 sec) 
+Finished CPU 0 instructions: 10000000 cycles: 8261454 cumulative IPC: 1.21044 (Simulation time: 0 hr 1 min 24 sec) 
 
 ChampSim completed all CPUs
 
 Region of Interest Statistics
 
-CPU 0 cumulative IPC: 1.2104 instructions: 10000000 cycles: 8261750
+CPU 0 cumulative IPC: 1.21044 instructions: 10000000 cycles: 8261454
 L1D TOTAL     ACCESS:    3006855  HIT:    3006225  MISS:        630
-L1D LOAD      ACCESS:    1382132  HIT:    1382048  MISS:         84
-L1D RFO       ACCESS:    1624723  HIT:    1624177  MISS:        546
+L1D LOAD      ACCESS:    1382133  HIT:    1382049  MISS:         84
+L1D RFO       ACCESS:    1624722  HIT:    1624176  MISS:        546
 L1D PREFETCH  ACCESS:          0  HIT:          0  MISS:          0
 L1D WRITEBACK ACCESS:          0  HIT:          0  MISS:          0
 L1D PREFETCH  REQUESTED:          0  ISSUED:          0  USEFUL:          0  USELESS:          0
 L1D AVERAGE MISS LATENCY: 135.257 cycles
-L1I TOTAL     ACCESS:    2225087  HIT:    2225084  MISS:          3
-L1I LOAD      ACCESS:    2225087  HIT:    2225084  MISS:          3
+L1I TOTAL     ACCESS:    2225072  HIT:    2225069  MISS:          3
+L1I LOAD      ACCESS:    2225072  HIT:    2225069  MISS:          3
 L1I RFO       ACCESS:          0  HIT:          0  MISS:          0
 L1I PREFETCH  ACCESS:          0  HIT:          0  MISS:          0
 L1I WRITEBACK ACCESS:          0  HIT:          0  MISS:          0
@@ -58,7 +58,7 @@ DRAM Statistics
 
  AVG_CONGESTED_CYCLE: 3
 
-CPU 0 Branch Prediction Accuracy: 99.8808% MPKI: 0.2835 Average ROB Occupancy at Mispredict: 344.613
+CPU 0 Branch Prediction Accuracy: 99.8817% MPKI: 0.2813 Average ROB Occupancy at Mispredict: 347.249
 
 Branch types
 NOT_BRANCH: 7622198 76.222%
