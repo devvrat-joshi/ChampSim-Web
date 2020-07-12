@@ -60,11 +60,11 @@ sources for you to plagiarize.
 
 // maximum history length
 
-#define MAXHIST	232
+#define MAXHIST	128
 
 // minimum history length (for table 1; table 0 is biases)
 
-#define MINHIST	3
+#define MINHIST	8
 
 // speed for dynamic threshold setting
 
@@ -72,7 +72,7 @@ sources for you to plagiarize.
 
 // geometric global history lengths
 
-int history_lengths[NTABLES] = { 0, 3, 4, 6, 8, 10, 14, 19, 26, 36, 49, 67, 91, 125, 170, MAXHIST };
+int history_lengths[NTABLES] = { 8,16,24,32,40,48,56,64,72,80,88,96,104,112,120,128 };
 
 // 12-bit indices for the tables
 
@@ -173,7 +173,7 @@ uint8_t O3_CPU::predict_branch(uint64_t pc) {
 	return yout[cpu] >= 1;
 }
 
-void O3_CPU::last_branch_result(uint64_t pc, uint8_t taken) {
+void O3_CPU::last_branch_result(uint64_t pc, uint8_t taken, uint64_t target) {
 
 	// was this prediction correct?
 

@@ -1,0 +1,303 @@
+//*****************************************************************Author: RAGHAV GOYAL**********************************************************
+//************************************************************Scaled Neural Branch Predictor*****************************************************
+
+#include "ooo_cpu.h"
+#include <stdlib.h>
+#include <time.h>
+#include <cmath>
+#define EXPANDED_BRANCH_HISTORY_LENGTH 64
+#define GLOBAL_BRANCH_HISTORY_LENGTH 20
+#define BRANCH_ADDRESS_HISTORY_LENGTH 25
+#define W_COLUMNS 129 // (1 bias weight + 128 correlating weights)
+#define ROWS_RECENT_BRANCHES 256 //W[0..7]
+#define ROWS_PAST_BRANCHES 128 //W[8..127]
+#define ROWS_BIAS 1024
+#define BITS_PER_WEIGHT_RECENT_BRANCHES_EXTENDED 7 //W[0..56]
+#define BITS_PER_WEIGHT_PAST_BRANCHES_SHRINKED 6 //W[57..128]
+#define BITS_PER_WEIGHT_BIAS 7
+#define WEIGHTS_PER_PERCEPTRON 8
+#define NO_OF_TABLES 8
+#define THETA  ((int)(1.93*GLOBAL_BRANCH_HISTORY_LENGTH+14))
+#define HASH_BITS_RECENT_BRANCHES ((int)(log2(ROWS_RECENT_BRANCHES)))
+#define HASH_BITS_PAST_BRANCHES ((int)(log2(ROWS_PAST_BRANCHES)))
+
+#define NUM_UPDATE_ENTRIES	100
+
+int current_cpu;
+
+int get_abslowerfrom_bits(int bits){
+    int max=(1<<bits)-1;
+    return max+1;
+}
+
+struct perceptron{
+    short int weights[WEIGHTS_PER_PERCEPTRON];
+};
+
+struct prev_state{
+    bool prediction;
+    int output;
+    short* bias_weight_address;
+    perceptron* predictors[NO_OF_TABLES];
+    bool history_state[EXPANDED_BRANCH_HISTORY_LENGTH];
+};
+
+//Buffer
+prev_state prev_state_buffer[NUM_CPUS][NUM_UPDATE_ENTRIES];
+int prev_state_buffer_counter[NUM_CPUS];
+
+//********************************************************************MEMORY UNITS****************************************************
+perceptron table_recent[NUM_CPUS][ROWS_RECENT_BRANCHES];
+perceptron table_past[NUM_CPUS][NO_OF_TABLES-1][ROWS_PAST_BRANCHES];
+short int bias_weights[NUM_CPUS][ROWS_BIAS];
+bool speculative_global_history[NUM_CPUS][GLOBAL_BRANCH_HISTORY_LENGTH],global_history[NUM_CPUS][GLOBAL_BRANCH_HISTORY_LENGTH];
+unsigned short int speculative_branch_address[NUM_CPUS][BRANCH_ADDRESS_HISTORY_LENGTH],branch_address[NUM_CPUS][BRANCH_ADDRESS_HISTORY_LENGTH];
+
+//********************************************************************MEMORY UNITS <------------****************************************************
+
+prev_state* store_last_pred[NUM_CPUS];
+
+//*******************************************************************RANDOM INITIALISATION UTILITY************************************
+void random_initialize_perceptron(perceptron* p,int clip){
+    // srand(time(0));
+    for (int i=0;i<WEIGHTS_PER_PERCEPTRON;i++){
+        p->weights[i]=0;
+    }
+}
+
+void random_initialize_table_recent(){
+    // int clip=get_abslowerfrom_bits(BITS_PER_WEIGHT_RECENT_BRANCHES);
+    int clip=0;
+    for (int j=0;j<ROWS_RECENT_BRANCHES;j++){
+        random_initialize_perceptron(&table_recent[current_cpu][j],clip);
+    }
+}
+
+void random_initialize_table_past(){
+    // int clip1=get_abslowerfrom_bits(BITS_PER_WEIGHT_RECENT_BRANCHES);
+    // int clip2=get_abslowerfrom_bits(BITS_PER_WEIGHT_PAST_BRANCHES);
+    int choice;
+    for (int j=0;j<NO_OF_TABLES-1;j++){
+        // if (j<6) choice=clip1;
+        // else choice=clip2;
+        int choice=0;
+        for (int k=0;k<ROWS_PAST_BRANCHES;k++){
+            random_initialize_perceptron(&table_past[current_cpu][j][k],choice);
+        }
+    }
+}
+
+void random_initialize_bias_weights(){
+    // srand(time(0));
+    // int clip=get_abslowerfrom_bits(BITS_PER_WEIGHT_BIAS);
+    for (int j=0;j<ROWS_BIAS;j++){
+        bias_weights[current_cpu][j]=0;
+    }
+}
+
+
+void initialise_global_history(){
+    
+    for (int j=0;j<GLOBAL_BRANCH_HISTORY_LENGTH;j++){
+        global_history[current_cpu][j]=0;
+        speculative_global_history[current_cpu][j]=0;
+    }
+} 
+
+void initialise_branch_address(){
+    for (int j=0;j<BRANCH_ADDRESS_HISTORY_LENGTH;j++){
+        branch_address[current_cpu][j]=0;
+        speculative_branch_address[current_cpu][j]=0;
+    }
+}
+//*******************************************************************RANDOM INITIALISATION UTILITY <---------************************************
+
+
+//*******************************************************************INITIALISE BRANCH PREDICTOR*****************************************
+void O3_CPU::initialize_branch_predictor(){
+    current_cpu=cpu;
+    prev_state_buffer_counter[cpu]=0;
+    random_initialize_table_recent();
+    random_initialize_table_past();
+    random_initialize_bias_weights();
+    initialise_global_history();
+    initialise_branch_address();
+}
+
+//*******************************************************************INITIALISE BRANCH PREDICTOR <--------*****************************************
+
+
+//*******************************************************************PREDICTION UTILITY************************************************************
+void get_expanded_branch_history(bool expanded_history[]){
+    int ctr=0;
+    int factor=EXPANDED_BRANCH_HISTORY_LENGTH/NO_OF_TABLES;
+    for (int i=0;i<NO_OF_TABLES;i++){
+        if (i%2==0){
+            int s=i/2;
+            for (int j=0;j<factor;j++){
+                expanded_history[ctr++]=speculative_global_history[s+j];
+            }
+        }
+        else{
+            int offset=GLOBAL_BRANCH_HISTORY_LENGTH/2;
+            int s=i/2+offset;
+            for (int j=0;j<factor;j++){
+                expanded_history[ctr++]=speculative_global_history[s+j];
+            }
+        }
+    }
+
+    //save state
+    for (int i=0;i<EXPANDED_BRANCH_HISTORY_LENGTH;i++){
+        store_last_pred[current_cpu]->history_state[i]=expanded_history[i];
+    }
+}
+
+unsigned int get_mask(int bits){
+    unsigned int mask=0;
+    for (int i=0;i<bits;i++){
+        mask |= (1<<i);
+    }
+    return mask;
+}
+
+unsigned int get_br_hash(int bits,int start,uint64_t pc){
+    unsigned int sum=0;
+    for (int i=start,cnt=0;cnt<bits;i++,cnt++){
+        sum+=speculative_branch_address[current_cpu][i];
+    }
+    unsigned int hashed=(sum&get_mask(bits));
+    unsigned int ans=(hashed^(pc&get_mask(bits)));
+    return ans;
+}
+
+void get_selected_weights(int selected_weights[],uint64_t pc){
+    unsigned int hash[NO_OF_TABLES];
+    int hash_size=HASH_BITS_RECENT_BRANCHES;
+    hash[0]=get_br_hash(hash_size,0,pc);
+
+    hash_size=HASH_BITS_PAST_BRANCHES;
+    for (int i=1;i<NO_OF_TABLES;i++){
+        hash[i]=get_br_hash(hash_size,i,pc);
+    }
+    //****************hash_extracted*******************
+    unsigned int choose=hash[0]%ROWS_RECENT_BRANCHES;
+    int wt_ctr=0;
+    perceptron* p;
+    p=&table_recent[current_cpu][choose];
+    store_last_pred[current_cpu]->predictors[0]=p;
+    for (int i=0;i<WEIGHTS_PER_PERCEPTRON;i++){
+        selected_weights[wt_ctr++]=p->weights[i];
+    }
+    for (int i=1;i<NO_OF_TABLES;i++){
+        choose=hash[i]%ROWS_PAST_BRANCHES;
+        p=&table_past[current_cpu][i-1][choose];
+        store_last_pred[current_cpu]->predictors[i]=p;
+        for (int j=0;j<WEIGHTS_PER_PERCEPTRON;j++){
+            selected_weights[wt_ctr++]=p->weights[j];
+        }
+    }
+} 
+
+//*******************************************************************PREDICTION UTILITY <-----------------************************************************************
+
+//*******************************************************************PREDICT BRANCH*********************************************************
+uint8_t O3_CPU::predict_branch(uint64_t ip){
+
+    //Buffer functionality
+    store_last_pred[cpu]=&prev_state_buffer[cpu][prev_state_buffer_counter[cpu]++];
+    if (prev_state_buffer_counter[cpu]>=NUM_UPDATE_ENTRIES) prev_state_buffer_counter[cpu]=0;
+
+    //expanded history
+    bool expanded_history[EXPANDED_BRANCH_HISTORY_LENGTH];
+    get_expanded_branch_history(expanded_history);
+
+    //selected weights
+    int selected_weights[EXPANDED_BRANCH_HISTORY_LENGTH];
+    get_selected_weights(selected_weights,ip);
+    
+    //bias hash
+    unsigned int bias_hash=(ip&get_mask(11))%ROWS_BIAS;
+
+    //dot product
+    int sum=0;
+    for (int i=0;i<EXPANDED_BRANCH_HISTORY_LENGTH;i++){
+        if (expanded_history[i]) sum+=selected_weights[i];
+        else sum-=selected_weights[i];
+    }
+    int output=sum+bias_weights[cpu][bias_hash];
+    (store_last_pred[cpu]->bias_weight_address)=(&(bias_weights[cpu][bias_hash]));
+    bool prediction=(output>=0);
+
+    (store_last_pred[cpu]->prediction)=prediction;
+    (store_last_pred[cpu]->output)=output;
+
+    return prediction;
+}
+
+//*******************************************************************PREDICT BRANCH <-------------*********************************************************
+
+//*******************************************************************LAST BRANCH RESULT********************************************************
+void O3_CPU::last_branch_result(uint64_t ip, uint8_t taken){
+
+    //Update histories
+    for (int i=GLOBAL_BRANCH_HISTORY_LENGTH-2;i>=0;i--){
+        global_history[cpu][i+1]=global_history[cpu][i];
+    }      
+    global_history[cpu][0]=bool(taken);
+
+    for (int i=BRANCH_ADDRESS_HISTORY_LENGTH-2;i>=0;i--){
+        branch_address[cpu][i+1]=branch_address[cpu][i];
+    }      
+    branch_address[cpu][0]=ip;
+
+    //Update speculative histories
+    if ((store_last_pred[cpu]->prediction)!=taken){
+        for (int i=0;i<GLOBAL_BRANCH_HISTORY_LENGTH;i++){
+            speculative_global_history[cpu][i]=global_history[cpu][i];
+        }      
+        for (int i=0;i<BRANCH_ADDRESS_HISTORY_LENGTH;i++){
+            speculative_branch_address[cpu][i]=branch_address[cpu][i];
+        }      
+    }
+
+    //Check if training needed
+    bool train=((abs(store_last_pred[cpu]->output)<THETA)||((store_last_pred[cpu]->prediction)!=taken));
+    if (!train) return;
+
+    //MIN MAX
+    int min_recent=-1*get_abslowerfrom_bits(BITS_PER_WEIGHT_RECENT_BRANCHES_EXTENDED);
+    int max_recent=-min_recent-1;
+    int min_past=-1*get_abslowerfrom_bits(BITS_PER_WEIGHT_PAST_BRANCHES_SHRINKED);
+    int max_past=-min_past-1;
+
+    //Train bias weight
+    short* bw_ptr=(store_last_pred[cpu]->bias_weight_address);
+    if (taken) (*bw_ptr)++;
+    else (*bw_ptr)--;
+    if ((*bw_ptr)>max_recent) (*bw_ptr)=max_recent;
+    if ((*bw_ptr)<min_recent) (*bw_ptr)=min_recent;
+
+    bool* history=(store_last_pred[cpu]->history_state);
+
+    for (int i=0;i<NO_OF_TABLES;i++){
+        int maxer=max_past,minner=min_past;
+        if (i<(NO_OF_TABLES/2)){
+            maxer=max_recent;
+            minner=min_recent;
+        }
+        perceptron* neuron=(store_last_pred[cpu]->predictors[i]);
+        for (int j=0;j<WEIGHTS_PER_PERCEPTRON;j++){
+            if (history[WEIGHTS_PER_PERCEPTRON*i+j]==bool(taken)){
+                (neuron->weights[j])++;
+                if (neuron->weights[j]>maxer) neuron->weights[j]=maxer;
+            }
+            else{
+                (neuron->weights[j])--;
+                if (neuron->weights[j]<minner) neuron->weights[j]=minner;
+            }
+        }
+    }
+}
+
+//*******************************************************************LAST BRANCH RESULT <----------------******************************************************

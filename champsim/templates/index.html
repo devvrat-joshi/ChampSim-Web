@@ -1,0 +1,44 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChampSim</title>
+    <link rel="stylesheet" href="{% static 'bootstrap.min.css' %}">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <a class="navbar-brand" href="#">ChampSim</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarColor01" aria-controls="navbarColor01" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+      
+        <div class="collapse navbar-collapse" id="navbarColor01">
+          <ul class="navbar-nav mr-auto">
+            <li class="nav-item active">
+              <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="build_champsim.sh">Build</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="run_champsim.sh">Run</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="Hybridize_Predictors_At_Ease">Hybridize</a>
+            </li>
+          </ul>
+        </div>
+      </nav>
+      <div class="jumbotron">
+        <h1 class="display-3">Championship Simulator</h1>
+        <p class="lead"> Write your branch predictor, compile it, run on traces and compare results directly from here </p>
+        <hr class="my-4">
+        <p>Analyzing Branch Predictors on various traces without any manual mistakes.</p>
+        <p class="lead">
+          <a class="btn btn-primary btn-lg" href="build_champsim.sh" role="button">Let's Start</a>
+        </p>
+      </div>
+</body>
+</html>

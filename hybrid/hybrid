@@ -1,0 +1,42 @@
+//Some Constants:
+#define hybrid_history 16390
+
+// HYBRID HISTORY
+int HYBRID[hybrid_history];
+
+//Hybrid initialize
+void O3_CPU::initialize_branch_predictor(){
+    {0}_initialize_branch_predictor();
+    {1}_initialize_branch_predictor();
+}
+
+uint8_t O3_CPU::predict_branch(uint64_t ip){
+    uint8_t prediction;
+    {0} = {0}_predict_branch(ip);
+    {1} = {1}_predict_branch(ip);
+    long long int mask=1;
+    long long int hash_value;
+    for(int i=0;i<13;i++)mask = (mask<<1)|1;
+    hash_value = mask&ip;
+    if(HYBRID[hash_value]<2)
+        return {1};  // {1} is predictor 2
+    else
+        return {0}; // {0} is predictor 1
+}
+
+void O3_CPU::last_branch_result(uint64_t ip, uint8_t taken, uint64_t target)
+{
+    long long int mask=1;
+    long long int hash_value;
+    for(int i=0;i<13;i++)mask = (mask<<1)|1;
+    hash_value = mask&ip;
+    if({0}!=taken && {1}==taken){
+        if(HYBRID[hash_value]>0)HYBRID[hash_value] -= 1;
+    }
+    if({0}==taken && {1}!=taken){
+        if(HYBRID[hash_value]<3)HYBRID[hash_value] += 1;
+    }
+
+    {0}_last_branch_result(ip,taken,target);
+    {1}_last_branch_result(ip,taken,target);
+}

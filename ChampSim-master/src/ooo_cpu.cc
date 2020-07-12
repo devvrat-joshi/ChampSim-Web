@@ -131,7 +131,7 @@ void O3_CPU::read_from_trace()
 			  }
 		      }
 		    
-		    last_branch_result(IFETCH_BUFFER.entry[ifetch_buffer_index].ip, IFETCH_BUFFER.entry[ifetch_buffer_index].branch_taken);
+		    last_branch_result(IFETCH_BUFFER.entry[ifetch_buffer_index].ip, IFETCH_BUFFER.entry[ifetch_buffer_index].branch_taken, IFETCH_BUFFER.entry[ifetch_buffer_index].branch_target);
 		  }
 		  
 		  if ((num_reads >= instrs_to_read_this_cycle) || (IFETCH_BUFFER.occupancy == IFETCH_BUFFER.SIZE))
@@ -381,7 +381,7 @@ void O3_CPU::read_from_trace()
 			      }
 			  }
 			
-			last_branch_result(IFETCH_BUFFER.entry[ifetch_buffer_index].ip, IFETCH_BUFFER.entry[ifetch_buffer_index].branch_taken);
+			last_branch_result(IFETCH_BUFFER.entry[ifetch_buffer_index].ip, IFETCH_BUFFER.entry[ifetch_buffer_index].branch_taken,IFETCH_BUFFER.entry[ifetch_buffer_index].branch_target);
                     }
 
                     if ((num_reads >= instrs_to_read_this_cycle) || (IFETCH_BUFFER.occupancy == IFETCH_BUFFER.SIZE))
@@ -777,6 +777,7 @@ void O3_CPU::decode_and_dispatch()
 	{
 	  // apply decode latency
 	  DECODE_BUFFER.entry[decode_index].event_cycle = current_core_cycle[cpu] + DECODE_LATENCY;
+	  count_decodes++;
 	}
       
       if(decode_index == DECODE_BUFFER.tail)
@@ -789,7 +790,6 @@ void O3_CPU::decode_and_dispatch()
 	  decode_index = 0;
 	}
 
-      count_decodes++;
       if(count_decodes >= DECODE_WIDTH)
 	{
 	  break;

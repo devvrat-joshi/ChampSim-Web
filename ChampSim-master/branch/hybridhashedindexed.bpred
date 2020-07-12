@@ -1,0 +1,214 @@
+#include "ooo_cpu.h"
+#define GLOBAL_HISTORY_LENGTH 14
+#define GLOBAL_HISTORY_MASK (1 << GLOBAL_HISTORY_LENGTH) - 1
+#define GS_HISTORY_TABLE_SIZE 16384
+#define PERCEPTRON_HISTORY	24
+#define NUM_PERCEPTRONS		163
+#define PERCEPTRON_BITS		8
+#define MAX_WEIGHT		((1<<(PERCEPTRON_BITS-1))-1)
+#define MIN_WEIGHT		(-(MAX_WEIGHT+1))
+#define THETA			((int) (1.93 * PERCEPTRON_HISTORY + 14))
+#define NUM_UPDATE_ENTRIES	100
+#define hybrid_history 600000
+int HYBRID[hybrid_history];
+uint8_t gshare;
+typedef struct {
+	int	weights[PERCEPTRON_HISTORY+1];
+} perceptron;
+typedef struct {
+	char dummy_counter;
+
+	int prediction, output;
+
+	unsigned long long int history;
+
+	perceptron *perc;
+} perceptron_state;
+perceptron perceptrons[NUM_CPUS][NUM_PERCEPTRONS];
+perceptron_state perceptron_state_buf[NUM_CPUS][NUM_UPDATE_ENTRIES];
+int perceptron_state_buf_ctr[NUM_CPUS];
+unsigned long long int spec_global_history[NUM_CPUS], global_history[NUM_CPUS];
+perceptron_state *u[NUM_CPUS];
+int branch_history_vector[NUM_CPUS];
+int gs_history_table[NUM_CPUS][GS_HISTORY_TABLE_SIZE];
+int my_last_prediction[NUM_CPUS];
+
+void initialize_perceptron (perceptron *p) {
+    int	i;
+    for (i=0; i<=PERCEPTRON_HISTORY; i++) p->weights[i] = 0;
+}
+
+void O3_CPU::initialize_branch_predictor()
+{
+    branch_history_vector[cpu] = 0;
+    my_last_prediction[cpu] = 0;
+    for(int i=0; i<GS_HISTORY_TABLE_SIZE; i++)
+        gs_history_table[cpu][i] = 2; // 2 is slightly taken
+    spec_global_history[cpu] = 0;
+    global_history[cpu] = 0;
+    perceptron_state_buf_ctr[cpu] = 0;
+    for (int i=0; i<NUM_PERCEPTRONS; i++)
+        initialize_perceptron (&perceptrons[cpu][i]);
+}
+
+unsigned int gs_table_hash(uint64_t ip, int bh_vector)
+{
+    unsigned int hash = ip^(ip>>GLOBAL_HISTORY_LENGTH)^(ip>>(GLOBAL_HISTORY_LENGTH*2))^bh_vector;
+    hash = hash%GS_HISTORY_TABLE_SIZE;
+    return hash;
+}
+
+uint8_t predict_branch_gshare(uint64_t ip)
+{
+    int prediction = 1;
+
+    int gs_hash = gs_table_hash(ip, branch_history_vector[0]);
+
+    if(gs_history_table[0][gs_hash] >= 2)
+        prediction = 1;
+    else
+        prediction = 0;
+
+    my_last_prediction[0] = prediction;
+
+    return prediction;
+}
+
+void last_branch_result_gshare(uint64_t ip, uint8_t taken)
+{
+    int gs_hash = gs_table_hash(ip, branch_history_vector[0]);
+
+    if(taken == 1) {
+        if(gs_history_table[0][gs_hash] < 3)
+            gs_history_table[0][gs_hash]++;
+    } else {
+        if(gs_history_table[0][gs_hash] > 0)
+            gs_history_table[0][gs_hash]--;
+    }
+
+    // update branch history vector
+    branch_history_vector[0] <<= 1;
+    branch_history_vector[0] &= GLOBAL_HISTORY_MASK;
+    branch_history_vector[0] |= taken;
+}
+
+uint8_t O3_CPU::predict_branch(uint64_t ip)
+{  
+    uint64_t address = ip;
+
+    int	
+        index,
+        i,
+        output,
+        *w;
+    unsigned long long int 
+        mask;
+    perceptron 
+        *p;
+
+    u[cpu] = &perceptron_state_buf[cpu][perceptron_state_buf_ctr[cpu]++];
+    if (perceptron_state_buf_ctr[cpu] >= NUM_UPDATE_ENTRIES)
+        perceptron_state_buf_ctr[cpu] = 0;
+
+    index = address % NUM_PERCEPTRONS;
+
+    p = &perceptrons[cpu][index];
+    w = &p->weights[0];
+
+
+    output = *w++;
+
+    for (mask=1,i=0; i<PERCEPTRON_HISTORY; i++,mask<<=1,w++) {
+        if (spec_global_history[cpu] & mask)
+            output += *w;
+        else
+            output += -*w;
+    }
+
+    /* record the various values needed to update the predictor */
+    u[cpu]->output = output;
+    u[cpu]->perc = p;
+    u[cpu]->history = spec_global_history[cpu];
+    u[cpu]->prediction = output >= 0;
+    u[cpu]->dummy_counter = u[cpu]->prediction ? 3 : 0;
+
+    /* update the speculative global history register */
+    
+    spec_global_history[cpu] <<= 1;
+    spec_global_history[cpu] |= u[cpu]->prediction;
+    gshare = predict_branch_gshare(ip);
+    mask=1;
+    for(i=0;i<18;i++)mask = (mask<<1)|1;
+    int hash_value = (mask)&(ip^spec_global_history[cpu]);
+    if(HYBRID[hash_value]<2)
+        return u[cpu]->prediction;
+    else
+        return gshare;
+    
+}
+
+void O3_CPU::last_branch_result(uint64_t ip, uint8_t taken)
+{
+    int	
+        i,
+        y, 
+        *w;
+    last_branch_result_gshare(ip,taken);
+    unsigned long long int
+        mask, 
+        history;
+
+    global_history[cpu] <<= 1;
+    global_history[cpu] |= taken;
+    mask=1;
+    for(i=0;i<18;i++)mask = (mask<<1)|1;
+    int hash_value = (mask)&(ip^spec_global_history[cpu]);
+    if(gshare!=taken && u[cpu]->prediction==taken){
+        if(HYBRID[hash_value]>0)HYBRID[hash_value] -= 1;
+    }
+    if(gshare==taken && u[cpu]->prediction!=taken){
+        if(HYBRID[hash_value]<3)HYBRID[hash_value] += 1;
+    }
+    if (u[cpu]->prediction != taken){
+        spec_global_history[cpu] = global_history[cpu];
+    } 
+
+    if (u[cpu]->output > THETA)
+        y = 1;
+    else if (u[cpu]->output < -THETA)
+        y = 0;
+    else
+        y = 2;
+    if (y == 1 && taken) return;
+    if (y == 0 && !taken) return;
+
+    w = &u[cpu]->perc->weights[0];
+
+    if (taken)
+        (*w)++;
+    else
+        (*w)--;
+    if (*w > MAX_WEIGHT) *w = MAX_WEIGHT;
+    if (*w < MIN_WEIGHT) *w = MIN_WEIGHT;
+
+    /* now w points to the next weight */
+
+    w++;
+
+    /* get the history that led to this prediction */
+
+    history = u[cpu]->history;
+
+    /* for each weight and corresponding bit in the history register... */
+
+    for (mask=1,i=0; i<PERCEPTRON_HISTORY; i++,mask<<=1,w++) {
+
+        if (!!(history & mask) == taken) { // a common trick to conver to boolean => !!x is 1 iff x is not zero, in this case history is positively correlated with branch outcome
+            (*w)++;
+            if (*w > MAX_WEIGHT) *w = MAX_WEIGHT;
+        } else {
+            (*w)--;
+            if (*w < MIN_WEIGHT) *w = MIN_WEIGHT;
+        }
+    }
+}

@@ -1,0 +1,5 @@
+predictor1 = input("Enter predictor 1 bpred file name")
+predictor2 = input("Enter predictor 1 bpred file name")
+hybridoutput = open("Hybrid_{}_{}.bpred".format(predictor1,predictor2),"w")
+predictor1 = open(predictor1+".bpred","r")
+predictor2 = open(predictor2+".bpred","r")

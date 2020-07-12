@@ -212,7 +212,7 @@ class O3_CPU {
     // branch predictor
     uint8_t predict_branch(uint64_t ip);
     void    initialize_branch_predictor(),
-            last_branch_result(uint64_t ip, uint8_t taken);
+            last_branch_result(uint64_t ip, uint8_t taken, uint64_t target);
 
   // code prefetching
   void l1i_prefetcher_initialize();

@@ -1,0 +1,130 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChampSim</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link rel="stylesheet" href="{% static 'bootstrap.min.css' %}">
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script> 
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script> 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/gh/StephanWagner/jBox@v1.2.0/dist/jBox.all.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/gh/StephanWagner/jBox@v1.2.0/dist/jBox.all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <a class="navbar-brand" id="doing" href="#">ChampSim</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarColor01" aria-controls="navbarColor01" aria-expanded="false" aria-label="Toggle navigation">
+          
+          <span class="navbar-toggler-icon"></span>
+        </button>
+      
+        <div class="collapse navbar-collapse" id="navbarColor01">
+          <ul class="navbar-nav mr-auto">
+            <li class="nav-item">
+              <a class="nav-link" href="home">Home <span class="sr-only">(current)</span></a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="build_champsim.sh">Build</a>
+            </li>
+            <li class="nav-item active">
+              <a class="nav-link" href="#">Run</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="Hybridize_Predictors_At_Ease">Hybridize</a>
+            </li>
+          </ul>
+        </div>
+      </nav>
+      <div class="closee">
+      </div>
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th scope="col">Traces</th>
+            <th scope="col" style="text-align: center;">Size</th>
+            <th scope="col" style="text-align: center;">Best Predictor</th>
+            <th scope="col" style="text-align: center;">Accuracy Best</th>
+            <th scope="col" style="text-align: center;">Run</th>
+          </tr>
+        </thead>
+        <tbody>
+          {%for i in traces%}
+          <tr class="table-info" id="{{i.name}}class">
+            <th scope="row">{{i.name}}</th>
+            <td style="text-align: center;">{{i.size}} MB</td>
+            <td style="text-align: center;">{{i.bestpred}}</td>
+            <td style="text-align: center;">{{i.accuracybest}}%</td>
+            <td style="text-align: center;">
+              <button type="button" id = "modal-drag-on-title{{i.num}}" class="btn btn-info btn-sm">Select Predictor</button>
+            </td>
+          </tr>
+          {%endfor%}
+        </tbody>
+      </table> 
+      <!-- <button type="button" class="btn btn-secondary" title="" data-container="body" data-toggle="popover" data-placement="bottom" data-content="Vivamus
+      sagittis lacus vel augue laoreet rutrum faucibus." data-original-title="Popover Title" aria-describedby="popover462014">Bottom</button>
+      <script>$("[data-toggle=popover]").popover();</script> -->
+
+    
+{% for i in traces %}
+<script>
+  $(document).ready(function() {
+  new jBox('Modal', {
+    attach: '#modal-drag-on-title{{i.num}}',
+    width: 320,
+    title: '{{i.name}}',
+    overlay: false,
+    content: '{% for j in BP%}<button type="button" id="{{i.name}}^^&&{{j}}" class="btn btn-primary btn-lg btn-block" onclick="run(this.id)">{{j}}</button>{%endfor%}',
+    draggable: 'title',
+    repositionOnOpen: false,
+    repositionOnContent: false
+  });
+});
+</script>
+{%endfor%}
+
+<script>
+  function run(idof){
+    const xhr = new XMLHttpRequest();
+    xhr.open("post","running",true);
+    xhr.getResponseHeader("Content-type","application/txt");
+    xhr.send(idof);
+    let index = idof.indexOf("^^&&");
+    let tracehere = idof.slice(0,index);
+    let bphere = idof.slice(index+4,idof.length);
+    document.getElementById(tracehere+"class").className = "table-warning";
+    document.getElementById("modal-drag-on-title"+tracehere.slice(0,3)).innerHTML = `<div class="spinner-border spinner-border-sm"></div>&nbsp</i>Running`;
+    document.getElementById("doing").innerHTML = `<i class="fa fa-spinner fa-spin">&nbsp</i>&nbspChampSim`;
+    let thistring = `<div class="alert alert-dismissible alert-success">
+      <button type="button" class="close" data-dismiss="alert" onclick='$("div.closee").html( "" )'>&times;</button>
+      <h3 class="alert-heading">Running! Trace: `+tracehere+`, with branch predictor: `+bphere+`</h3> 
+    </div>`;
+    $("div.closee").html(thistring)
+    xhr.onload = function(){
+      if(this.status==200){
+        console.log(this.responseText);
+        let timehere = this.responseText.slice(10,15);
+        let accu = this.responseText.slice(28,36);
+        console.log(accu);
+        console.log(timehere);
+        let thistring = `<div class="alert alert-dismissible alert-success">
+          <button type="button" class="close" data-dismiss="alert" onclick='$("div.closee").html( "" )'>&times;</button>
+          <h4 class="alert-heading">Trace: `+tracehere+`, Branch Predictor Used: `+bphere+`</h4>
+          <p class="mb-0">Accuracy: `+accu+`, Time Taken: `+timehere+` seconds</p>
+        </div>`;
+        $("div.closee").html(thistring)
+        document.getElementById("doing").innerHTML = "ChampSim";
+        document.getElementById("modal-drag-on-title"+tracehere.slice(0,3)).innerHTML = "Select Predictor";
+        document.getElementById(tracehere+"class").className = "table-info";
+      }
+    }
+  }
+</script>
+</body>
+</html>

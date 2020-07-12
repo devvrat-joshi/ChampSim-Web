@@ -1,0 +1,70 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChampSim</title>
+    <link rel="stylesheet" href="{% static 'bootstrap.min.css' %}">
+    <script src="{% static 'codemirror.js'%}"></script>
+    <link rel="stylesheet" href="{% static 'codemirror.css'%}">
+    <script src="https://code.jquery.com/jquery-3.1.0.min.js"></script>
+    <script src="{% static 'clike.js'%}"></script>
+    <script src="{% static 'closebrackets.js'%}"></script>
+    <link rel="stylesheet" href="{% static 'darcula.css'%}">    
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <a class="navbar-brand" href="#">ChampSim Branch Predictor Editor</a>
+      
+        <div class="collapse navbar-collapse" id="navbarColor01">
+          <ul class="navbar-nav mr-auto">
+          </ul>
+          <form method="POST" action="newpred" class="form-inline my-2 my-lg-0">
+            <input class="form-control mr-sm-2" type="text" placeholder="Branch Predictor Name">
+            <button class="btn btn-primary" type="submit" onclick="window.close()">Add</button>
+          </form>
+        </div>
+      </nav>
+      <div class="sendthis">
+
+      </div>
+      <form action="code" method="post">
+        {% csrf_token %}
+            <textarea id="editor" name="ed1">
+#include "ooo_cpu.h"
+
+void O3_CPU::initialize_branch_predictor(){
+  //initialize your predictor here
+}
+
+uint8_t O3_CPU::predict_branch(uint64_t ip){
+  uint8_t prediction;
+  // code your prediction logic here
+  return prediction;
+}
+
+void O3_CPU::last_branch_result(uint64_t ip, uint8_t taken, uint64_t target)
+{
+  // update your predictor with the results
+}
+</textarea>
+      </form>
+      
+    <script>
+        var editor = CodeMirror.fromTextArea(document.getElementById("editor"),{
+            mode:"text/x-c++src",
+            theme:"darcula",
+            lineNumbers: true,
+            autoCloseBrackets: true
+        });
+        editor.setSize("1365","601");
+    </script>
+    <script type="text/javascript"> 
+        window.addEventListener('beforeunload', function (e) { 
+            e.preventDefault(); 
+            e.returnValue = '';
+        }); 
+    </script> 
+</body>
+</html>

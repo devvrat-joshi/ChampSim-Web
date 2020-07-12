@@ -1,0 +1,358 @@
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+#include <stdlib.h>
+#include "ooo_cpu.h"
+#define GLOBAL_HISTORY_LENGTH 14
+#define GLOBAL_HISTORY_MASK (1 << GLOBAL_HISTORY_LENGTH) - 1
+#define GS_HISTORY_TABLE_SIZE 16384
+#define PERCEPTRON_HISTORY	24
+#define NUM_PERCEPTRONS		163
+#define PERCEPTRON_BITS		8
+#define MAX_WEIGHT		((1<<(PERCEPTRON_BITS-1))-1)
+#define MIN_WEIGHT		(-(MAX_WEIGHT+1))
+#define THETA			((int) (1.93 * PERCEPTRON_HISTORY + 14))
+#define NUM_UPDATE_ENTRIES	100
+#define hybrid_history 600000
+#define NTABLES	16
+#define MAXHIST	232
+#define MINHIST	3
+#define SPEED	18
+int history_lengths[NTABLES] = { 0, 3, 4, 6, 8, 10, 14, 19, 26, 36, 49, 67, 91, 125, 170, MAXHIST };
+#define LOG_TABLE_SIZE	12
+#define TABLE_SIZE	(1<<LOG_TABLE_SIZE)
+#define NGHIST_WORDS	(MAXHIST/LOG_TABLE_SIZE+1)
+int tables[NUM_CPUS][NTABLES][TABLE_SIZE];
+unsigned int ghist_words[NUM_CPUS][NGHIST_WORDS];
+unsigned int indices[NUM_CPUS][NTABLES];
+int theta[NUM_CPUS], tc[NUM_CPUS],yout[NUM_CPUS];
+
+int HYBRID[hybrid_history];
+uint8_t gshare,hashd;
+typedef struct {
+	int	weights[PERCEPTRON_HISTORY+1];
+} perceptron;
+typedef struct {
+	char dummy_counter;
+
+	int prediction, output;
+
+	unsigned long long int history;
+
+	perceptron *perc;
+} perceptron_state;
+perceptron perceptrons[NUM_CPUS][NUM_PERCEPTRONS];
+perceptron_state perceptron_state_buf[NUM_CPUS][NUM_UPDATE_ENTRIES];
+int perceptron_state_buf_ctr[NUM_CPUS];
+unsigned long long int spec_global_history[NUM_CPUS], global_history[NUM_CPUS];
+perceptron_state *u[NUM_CPUS];
+int branch_history_vector[NUM_CPUS];
+int gs_history_table[NUM_CPUS][GS_HISTORY_TABLE_SIZE];
+int my_last_prediction[NUM_CPUS];
+
+void initialize_perceptron (perceptron *p) {
+    int	i;
+    for (i=0; i<=PERCEPTRON_HISTORY; i++) p->weights[i] = 0;
+}
+
+void O3_CPU::initialize_branch_predictor()
+{
+    memset (tables, 0, sizeof (tables));
+	memset (ghist_words, 0, sizeof (ghist_words));
+	for (int i=0; i<NUM_CPUS; i++) theta[i] = 10;
+    branch_history_vector[0] = 0;
+    my_last_prediction[0] = 0;
+    for(int i=0; i<GS_HISTORY_TABLE_SIZE; i++)
+        gs_history_table[0][i] = 2; // 2 is slightly taken
+    spec_global_history[0] = 0;
+    global_history[0] = 0;
+    perceptron_state_buf_ctr[0] = 0;
+    for (int i=0; i<NUM_PERCEPTRONS; i++)
+        initialize_perceptron (&perceptrons[0][i]);
+}
+
+unsigned int gs_table_hash(uint64_t ip, int bh_vector)
+{
+    unsigned int hash = ip^(ip>>GLOBAL_HISTORY_LENGTH)^(ip>>(GLOBAL_HISTORY_LENGTH*2))^bh_vector;
+    hash = hash%GS_HISTORY_TABLE_SIZE;
+    return hash;
+}
+
+uint8_t predict_branch_gshare(uint64_t ip)
+{
+    int prediction = 1;
+
+    int gs_hash = gs_table_hash(ip, branch_history_vector[0]);
+
+    if(gs_history_table[0][gs_hash] >= 2)
+        prediction = 1;
+    else
+        prediction = 0;
+
+    my_last_prediction[0] = prediction;
+
+    return prediction;
+}
+
+void last_branch_result_gshare(uint64_t ip, uint8_t taken)
+{
+    int gs_hash = gs_table_hash(ip, branch_history_vector[0]);
+
+    if(taken == 1) {
+        if(gs_history_table[0][gs_hash] < 3)
+            gs_history_table[0][gs_hash]++;
+    } else {
+        if(gs_history_table[0][gs_hash] > 0)
+            gs_history_table[0][gs_hash]--;
+    }
+
+    // update branch history vector
+    branch_history_vector[0] <<= 1;
+    branch_history_vector[0] &= GLOBAL_HISTORY_MASK;
+    branch_history_vector[0] |= taken;
+}
+uint8_t predict_branch_hash(uint64_t pc);
+uint8_t O3_CPU::predict_branch(uint64_t ip)
+{  
+    uint64_t address = ip;
+
+    int	
+        index,
+        i,
+        output,
+        *w;
+    unsigned long long int 
+        mask;
+    perceptron 
+        *p;
+
+    u[0] = &perceptron_state_buf[0][perceptron_state_buf_ctr[0]++];
+    if (perceptron_state_buf_ctr[0] >= NUM_UPDATE_ENTRIES)
+        perceptron_state_buf_ctr[0] = 0;
+
+    index = address % NUM_PERCEPTRONS;
+
+    p = &perceptrons[0][index];
+    w = &p->weights[0];
+
+
+    output = *w++;
+
+    for (mask=1,i=0; i<PERCEPTRON_HISTORY; i++,mask<<=1,w++) {
+        if (spec_global_history[0] & mask)
+            output += *w;
+        else
+            output += -*w;
+    }
+
+    /* record the various values needed to update the predictor */
+    u[0]->output = output;
+    u[0]->perc = p;
+    u[0]->history = spec_global_history[0];
+    u[0]->prediction = output >= 0;
+    u[0]->dummy_counter = u[0]->prediction ? 3 : 0;
+
+    /* update the speculative global history register */
+    
+    spec_global_history[0] <<= 1;
+    spec_global_history[0] |= u[0]->prediction;
+    hashd = predict_branch_hash(ip);
+    mask=1;
+    for(i=0;i<18;i++)mask = (mask<<1)|1;
+    int hash_value = (mask)&(ip^spec_global_history[0]);
+    if(HYBRID[hash_value]<2)
+        return u[0]->prediction;
+    else
+        return hashd;
+    
+}
+void last_branch_result_hash(uint64_t pc, uint8_t taken);
+void O3_CPU::last_branch_result(uint64_t ip, uint8_t taken)
+{
+    int	
+        i,
+        y, 
+        *w;
+    last_branch_result_hash(ip,taken);
+    unsigned long long int
+        mask, 
+        history;
+
+    global_history[0] <<= 1;
+    global_history[0] |= taken;
+    mask=1;
+    for(i=0;i<18;i++)mask = (mask<<1)|1;
+    int hash_value = (mask)&(ip^spec_global_history[0]);
+    if(hashd!=taken && u[0]->prediction==taken){
+        if(HYBRID[hash_value]>0)HYBRID[hash_value] -= 1;
+    }
+    if(hashd==taken && u[0]->prediction!=taken){
+        if(HYBRID[hash_value]<3)HYBRID[hash_value] += 1;
+    }
+    if (u[0]->prediction != taken){
+        spec_global_history[0] = global_history[0];
+    } 
+
+    if (u[0]->output > THETA)
+        y = 1;
+    else if (u[0]->output < -THETA)
+        y = 0;
+    else
+        y = 2;
+    if (y == 1 && taken) return;
+    if (y == 0 && !taken) return;
+
+    w = &u[0]->perc->weights[0];
+
+    if (taken)
+        (*w)++;
+    else
+        (*w)--;
+    if (*w > MAX_WEIGHT) *w = MAX_WEIGHT;
+    if (*w < MIN_WEIGHT) *w = MIN_WEIGHT;
+
+    /* now w points to the next weight */
+
+    w++;
+
+    /* get the history that led to this prediction */
+
+    history = u[0]->history;
+
+    /* for each weight and corresponding bit in the history register... */
+
+    for (mask=1,i=0; i<PERCEPTRON_HISTORY; i++,mask<<=1,w++) {
+
+        if (!!(history & mask) == taken) { // a common trick to conver to boolean => !!x is 1 iff x is not zero, in this case history is positively correlated with branch outcome
+            (*w)++;
+            if (*w > MAX_WEIGHT) *w = MAX_WEIGHT;
+        } else {
+            (*w)--;
+            if (*w < MIN_WEIGHT) *w = MIN_WEIGHT;
+        }
+    }
+}
+
+
+
+uint8_t predict_branch_hash(uint64_t pc) {
+
+	// initialize perceptron sum
+
+	yout[0] = 0;
+
+	// for each table...
+
+	for (int i=0; i<NTABLES; i++) {
+
+		// n is the history length for this table
+
+		int n = history_lengths[i];
+
+		// hash global history bits 0..n-1 into x by XORing the words from the ghist_words array
+
+		unsigned int x = 0;
+
+		// most of the words are 12 bits long
+
+		int most_words = n / LOG_TABLE_SIZE;
+
+		// the last word is fewer than 12 bits
+
+		int last_word = n % LOG_TABLE_SIZE;
+
+		// XOR up to the next-to-the-last word
+
+		int j;
+		for (j=0; j<most_words; j++) x ^= ghist_words[0][j];
+
+		// XOR in the last word
+
+		x ^= ghist_words[0][j] & ((1<<last_word)-1);
+
+		// XOR in the PC to spread accesses around (like gshare)
+
+		x ^= pc;
+
+		// stay within the table size
+
+		x &= TABLE_SIZE-1;
+
+		// remember this index for update
+
+		indices[0][i] = x;
+
+		// add the selected weight to the perceptron sum
+
+		yout[0] += tables[0][i][x];
+	}
+	return yout[0] >= 1;
+}
+
+void last_branch_result_hash(uint64_t pc, uint8_t taken) {
+
+	// was this prediction correct?
+
+	bool correct = taken == (yout[0] >= 1);
+
+	// insert this branch outcome into the global history
+
+	bool b = taken;
+	for (int i=0; i<NGHIST_WORDS; i++) {
+
+		// shift b into the lsb of the current word
+
+		ghist_words[0][i] <<= 1;
+		ghist_words[0][i] |= b;
+
+		// get b as the previous msb of the current word
+
+		b = !!(ghist_words[0][i] & TABLE_SIZE);
+		ghist_words[0][i] &= TABLE_SIZE-1;
+	}
+
+	// get the magnitude of yout
+
+	int a = (yout[0] < 0) ? -yout[0] : yout[0];
+
+	// perceptron learning rule: train if misprediction or weak correct prediction
+
+	if (!correct || a < theta[0]) {
+		// update weights
+		for (int i=0; i<NTABLES; i++) {
+			// which weight did we use to compute yout?
+
+			int *c = &tables[0][i][indices[0][i]];
+
+			// increment if taken, decrement if not, saturating at 127/-128
+
+			if (taken) {
+				if (*c < 127) (*c)++;
+			} else {
+				if (*c > -128) (*c)--;
+			}
+		}
+
+		// dynamic threshold setting from Seznec's O-GEHL paper
+
+		if (!correct) {
+
+			// increase theta after enough mispredictions
+
+			tc[0]++;
+			if (tc[0] >= SPEED) {
+				theta[0]++;
+				tc[0] = 0;
+			}
+		} else if (a < theta[0]) {
+
+			// decrease theta after enough weak but correct predictions
+
+			tc[0]--;
+			if (tc[0] <= -SPEED) {
+				theta[0]--;
+				tc[0] = 0;
+			}
+		}
+	}
+}
