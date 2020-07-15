@@ -32,7 +32,26 @@
         padding: 12px 16px; /* Some padding */
         font-size: 16px /* Set a font size */
       }
-    
+      html {
+        --scrollbarBG: #CFD8DC;
+        --thumbBG: #90A4AE;
+      }
+      body::-webkit-scrollbar {
+        width: 15px;
+      }
+      body {
+        scrollbar-width: thin;
+        scrollbar-color: var(--thumbBG) var(--scrollbarBG);
+      }
+      body::-webkit-scrollbar-track {
+        background: var(--scrollbarBG);
+      }
+      body::-webkit-scrollbar-thumb {
+        background-color: var(--thumbBG) ;
+        border-radius: 6px;
+        border: 3px solid var(--scrollbarBG);
+      }
+      
     </style>
 </head>
 <body>
@@ -70,7 +89,7 @@
             <th scope="col">Last Build Time</th>
             <th scope="col">Traces Ran</th>
             <th scope="col">Average Accuracy</th>
-            <th scope="col">Build Now</th>
+            <th scope="col"  style="text-align:center;">Build Now</th>
           </tr>
         </thead>
         <tbody>
@@ -81,10 +100,10 @@
             <td>{{i.time}}</div></td>
             <td>{{i.traces}}</td>
             <td ><span class="tooltip" data-jbox-title="{{i.name}} : tracewise breakup" data-jbox-content='{% for j in i.traceslist%}{{j.first}} &nbsp&nbsp&nbsp&nbsp&nbsp  <span style="text-align: justify;float: right;"">{{j.second}}</span><br>{%endfor%}'>{{i.avg_accuracy}}%</span>{{i.avg_accuracy}}%</td>
-            <td>
+            <td  style="text-align:center;">
               <form method="post">
               {% csrf_token %}
-              <button type="button" id = "{{i.name}}" class="btn btn-info btn-sm" onclick="build(this.id)">ReBuild</button></form>
+              <button type="button" id = "{{i.name}}" style="text-align:center;" class="btn btn-info btn-sm" onclick="build(this.id)">ReBuild</button></form>
             </td>
           </tr>
         {% else %}
@@ -93,7 +112,7 @@
             <td id="{{i.name}}time">Unbuilded</td>
             <td>0</td>
             <td>%</td>
-            <td><form>{% csrf_token %}<button type="button" class="btn btn-info btn-sm" id = "{{i.name}}" onclick="build(this.id)">Build</button></form></td>
+            <td  style="text-align:center;"><form>{% csrf_token %}<button type="button" class="btn btn-info btn-sm" id = "{{i.name}}" onclick="build(this.id)">Build</button></form></td>
           </tr>
         {%endif%}
         {% endfor %}

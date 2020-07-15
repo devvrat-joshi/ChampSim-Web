@@ -30,4 +30,5 @@ urlpatterns = [
     path('BP_editor_read_write',views.code,name="BP_editor_read_write"),
     path('codeit',views.codeit,name="codeit"),
     path('saveit',views.saveit,name="saveit"),
+    path('addit',views.addit,name="addit"),
 ]

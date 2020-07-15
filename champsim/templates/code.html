@@ -11,7 +11,28 @@
     <script src="https://code.jquery.com/jquery-3.1.0.min.js"></script>
     <script src="{% static 'clike.js'%}"></script>
     <script src="{% static 'closebrackets.js'%}"></script>
-    <link rel="stylesheet" href="{% static 'darcula.css'%}">    
+    <link rel="stylesheet" href="{% static 'tomorrow-night-bright.css'%}">    
+    <style>
+        html {
+            --scrollbarBG: #CFD8DC;
+            --thumbBG: #90A4AE;
+          }
+          body::-webkit-scrollbar {
+            width: 15px;
+          }
+          body {
+            scrollbar-width: thin;
+            scrollbar-color: var(--thumbBG) var(--scrollbarBG);
+          }
+          body::-webkit-scrollbar-track {
+            background: var(--scrollbarBG);
+          }
+          body::-webkit-scrollbar-thumb {
+            background-color: var(--thumbBG) ;
+            border-radius: 6px;
+            border: 3px solid var(--scrollbarBG);
+          }
+    </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -20,32 +41,37 @@
         <div class="collapse navbar-collapse" id="navbarColor01">
           <ul class="navbar-nav mr-auto">
           </ul>
-            <button class="btn btn-primary" type="submit" onclick="saveit()">Save</button>
+            <button class="btn btn-primary" id="saveithere" type="submit" onclick="saveit()">AutoSave is On</button>
         </div>
       </nav>
       <div class="sendthis">
 
       </div>
-      <form action="code" method="post">
-        {% csrf_token %}
-            <textarea id="editor" name="ed1" >
+            <textarea class="getthis" id="editor1" style="font-size: 36px;" name="ed1" oninput="saveit();">
 {{code}}
 </textarea>
-      </form>
       
     <script>
-        var editor = CodeMirror.fromTextArea(document.getElementById("editor"),{
+        
+        var editor = CodeMirror.fromTextArea(document.getElementById("editor1"),{
             mode:"text/x-c++src",
-            theme:"darcula",
+            theme:"tomorrow-night-bright",
             lineNumbers: true,
-            autoCloseBrackets: true
+            autoCloseBrackets: true,
         });
+        editor.getWrapperElement().style["font-size"] = "16px";
+        editor.refresh();
         editor.setSize("100%","100%");
+        function updateTextArea() {
+            editor.save();
+            document.getElementById("saveithere").innerHTML = `<div class="spinner-border spinner-border-sm"></div>&nbsp</i>Saving`;
+            saveit();
+        }
+        editor.on('change', updateTextArea);
 
         var code;
         function saveit(){
-            code = document.getElementById("editor").innerHTML;
-            console.log(code);
+            code = document.getElementById("editor1").value;
             const xhr = new XMLHttpRequest();
             xhr.open("post","saveit",true);
             xhr.getResponseHeader("Content-type","application/txt");
@@ -53,6 +79,7 @@
             xhr.onload = function(){
                 if(this.status==200){
                     console.log("saved");
+                    document.getElementById("saveithere").innerHTML = "Code saved automatically";
                 }
             }
         }

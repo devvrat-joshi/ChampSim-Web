@@ -24,13 +24,31 @@
           .Aligner-item {
             max-width: 50%;
           }
-          
+          html {
+            --scrollbarBG: #CFD8DC;
+            --thumbBG: #90A4AE;
+          }
+          body::-webkit-scrollbar {
+            width: 15px;
+          }
+          body {
+            scrollbar-width: thin;
+            scrollbar-color: var(--thumbBG) var(--scrollbarBG);
+          }
+          body::-webkit-scrollbar-track {
+            background: var(--scrollbarBG);
+          }
+          body::-webkit-scrollbar-thumb {
+            background-color: var(--thumbBG) ;
+            border-radius: 6px;
+            border: 3px solid var(--scrollbarBG);
+          }
 
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <a class="navbar-brand" href="#">ChampSim</a>
+        <a class="navbar-brand" href="#" id="doing">ChampSim</a>
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarColor01" aria-controls="navbarColor01" aria-expanded="false" aria-label="Toggle navigation">
           <span class="navbar-toggler-icon"></span>
         </button>
@@ -64,7 +82,7 @@
             </div>
             <div class="col-md-6" style="text-align: center;">
                 <div style="text-align: center;"><img src="{% static 'hybridimg.jpeg'%}" alt="" style="align-self:center;max-height:270px;"></div>
-                <button type="button" style="margin-top: 20px;" class="btn btn-primary" onclick="hybridize()">Hybridize</button>
+                <button type="button" style="margin-top: 20px;" class="btn btn-primary hybrid" onclick="hybridize()">Hybridize</button>
             </div>
             <div class="col-md-3" style="text-align: center;">
               <button type="button" id = "pred2" class="btn btn-primary btn-lg btn-block" style="margin-top:100px;">Select Predictor 2</button>
@@ -99,6 +117,8 @@
               xhr.open("post","hybridmake",true);
               xhr.getResponseHeader("Content-type","application/txt");
               xhr.send(predictor1+"^^&&"+predictor2);
+              $("button.hybrid").html(`<i class="fa fa-spinner fa-spin">&nbsp</i>Hybridize`);
+              document.getElementById("doing").innerHTML = `<i class="fa fa-spinner fa-spin">&nbsp</i>ChampSim`;
               xhr.onload = function(){
                 if(this.status==200){
                   console.log(this.responseText);
@@ -107,6 +127,8 @@
                         <button type="button" class="close" data-dismiss="alert" onclick='$("div.closee").html( "" )'>&times;</button>
                         <h3 class="alert-heading">File: hybrid_`+predictor1+`_`+predictor2+` is now in your branch predictor's list</h3> 
                       </div>`;
+                      $("button.hybrid").html(`Hybridize`);
+                      document.getElementById("doing").innerHTML = `ChampSim`;
                       $("div.closee").html(thistring);
                   }
                 }

@@ -12,6 +12,27 @@
     <script src="{% static 'clike.js'%}"></script>
     <script src="{% static 'closebrackets.js'%}"></script>
     <link rel="stylesheet" href="{% static 'darcula.css'%}">    
+    <style>
+      html {
+        --scrollbarBG: #CFD8DC;
+        --thumbBG: #90A4AE;
+      }
+      body::-webkit-scrollbar {
+        width: 15px;
+      }
+      body {
+        scrollbar-width: thin;
+        scrollbar-color: var(--thumbBG) var(--scrollbarBG);
+      }
+      body::-webkit-scrollbar-track {
+        background: var(--scrollbarBG);
+      }
+      body::-webkit-scrollbar-thumb {
+        background-color: var(--thumbBG) ;
+        border-radius: 6px;
+        border: 3px solid var(--scrollbarBG);
+      }
+    </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -20,10 +41,8 @@
         <div class="collapse navbar-collapse" id="navbarColor01">
           <ul class="navbar-nav mr-auto">
           </ul>
-          <form method="POST" action="newpred" class="form-inline my-2 my-lg-0">
-            <input class="form-control mr-sm-2" type="text" placeholder="Branch Predictor Name">
-            <button class="btn btn-primary" type="submit" onclick="window.close()">Add</button>
-          </form>
+            <input class="form-control mr-sm-2" id="inp" style="width: 250px;" type="text" placeholder="Branch Predictor Name">
+            <button class="btn btn-primary" type="submit" onclick="addit()">Add</button>
         </div>
       </nav>
       <div class="sendthis">
@@ -48,6 +67,11 @@ void O3_CPU::last_branch_result(uint64_t ip, uint8_t taken, uint64_t target)
 {
   // update your predictor with the results
 }
+
+
+
+
+
 </textarea>
       </form>
       
@@ -58,13 +82,32 @@ void O3_CPU::last_branch_result(uint64_t ip, uint8_t taken, uint64_t target)
             lineNumbers: true,
             autoCloseBrackets: true
         });
+        function updateTextArea() {
+          editor.save();
+        }
+        editor.getWrapperElement().style["font-size"] = "16px";
+        editor.refresh();
+        editor.on('change', updateTextArea);
         editor.setSize("1280","553");
+        var code;
+        function addit(){
+          code = document.getElementById("editor").value;
+          let predictor = document.getElementById("inp").value;
+          console.log(predictor);
+          const xhr = new XMLHttpRequest();
+          xhr.open("post","addit",true);
+          xhr.getResponseHeader("Content-type","application/txt");
+          xhr.send(predictor+"^^&&"+code);
+          xhr.onload = function(){
+              if(this.status==200){
+                  console.log("added");
+                  window.location.href = "codeit"
+              }
+          }
+      }
     </script>
     <script type="text/javascript"> 
-        window.addEventListener('beforeunload', function (e) { 
-            e.preventDefault(); 
-            e.returnValue = '';
-        }); 
+        
     </script> 
 </body>
 </html>
