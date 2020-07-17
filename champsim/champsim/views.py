@@ -22,7 +22,7 @@ class trace_:
     bestpred = str
     accuracybest = float
 Pair = namedtuple("Pair", ["first", "second"])
-path_of_champsim = "/home/devvratjoshi/ChampSimCompArc/"
+path_of_champsim = str(Path(__file__).parents[2])
 
 def home(request):
     print(path_of_champsim)
