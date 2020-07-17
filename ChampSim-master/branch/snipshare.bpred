@@ -304,7 +304,7 @@ void last_branch_result_gshare(uint64_t ip, uint8_t taken)
     branch_history_vector[0] |= taken;
 }
 
-void O3_CPU::last_branch_result(uint64_t ip, uint8_t taken){
+void O3_CPU::last_branch_result(uint64_t ip, uint8_t taken, uint64_t target){
     last_branch_result_gshare(ip,taken);
     long long int mask=1;
     long long int hash_value;
@@ -377,3 +377,5 @@ void O3_CPU::last_branch_result(uint64_t ip, uint8_t taken){
 }
 
 //*******************************************************************LAST BRANCH RESULT <----------------******************************************************
+
+

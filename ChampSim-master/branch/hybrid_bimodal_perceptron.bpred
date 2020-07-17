@@ -270,7 +270,7 @@ uint8_t perceptronfirst_predict_branch(uint64_t ip)
     return u[cpu]->prediction;
 }
 
-void perceptronfirst_last_branch_result(uint64_t ip, uint8_t taken)
+void perceptronfirst_last_branch_result(uint64_t ip, uint8_t taken, uint64_t target)
 {
     int cpu = 0;
     int	
@@ -389,3 +389,4 @@ void O3_CPU::last_branch_result(uint64_t ip, uint8_t taken, uint64_t target)
     bimodalfirst_last_branch_result(ip,taken,target);
     perceptronfirst_last_branch_result(ip,taken,target);
 }
+

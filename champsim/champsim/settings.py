@@ -23,9 +23,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = 'n*j(v0&cl+_wpdh@5_l(p4%^z^&^*2l07nr1)5ukd5&!t!^al^'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['192.168.0.105','127.0.0.1']
+ALLOWED_HOSTS = ['devvratjoshi.pythonanywhere.com','127.0.0.1']
 
 
 # Application definition
@@ -54,7 +54,7 @@ ROOT_URLCONF = 'champsim.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': ['templates'],
+        'DIRS': ['/home/devvratjoshi/ChampSimCompArc/champsim/templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -117,8 +117,5 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.0/howto/static-files/
 
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [
-    BASE_DIR+'/static'
-]
-STATIC_ROOT = os.path.join(BASE_DIR,'assets')
+STATIC_URL = "/static/"
+STATIC_ROOT = '/home/devvratjoshi/ChampSimCompArc/champsim/static'

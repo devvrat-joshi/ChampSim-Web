@@ -8,12 +8,12 @@ LLC sets: 2048
 LLC ways: 16
 Off-chip DRAM Size: 4096 MB Channels: 1 Width: 64-bit Data Rate: 3200 MT/s
 
-CPU 0 runs /mnt/c/Studies/projects/COA/ChampSim-master/dpc3_traces/603.bwaves_s-5359B.champsimtrace.xz
+CPU 0 runs /home/devvratjoshi/ChampSimCompArc/ChampSim-master/dpc3_traces/603.bwaves_s-5359B.champsimtrace.xz
 
-Warmup complete CPU 0 instructions: 1000001 cycles: 339498 (Simulation time: 0 hr 0 min 2 sec) 
+Warmup complete CPU 0 instructions: 1000001 cycles: 339498 (Simulation time: 0 hr 0 min 3 sec) 
 
-Heartbeat CPU 0 instructions: 10000002 cycles: 8139364 heartbeat IPC: 1.2286 cumulative IPC: 1.15387 (Simulation time: 0 hr 0 min 29 sec) 
-Finished CPU 0 instructions: 10000003 cycles: 8658055 cumulative IPC: 1.15499 (Simulation time: 0 hr 0 min 33 sec) 
+Heartbeat CPU 0 instructions: 10000002 cycles: 8139364 heartbeat IPC: 1.2286 cumulative IPC: 1.15387 (Simulation time: 0 hr 0 min 21 sec) 
+Finished CPU 0 instructions: 10000003 cycles: 8658055 cumulative IPC: 1.15499 (Simulation time: 0 hr 0 min 23 sec) 
 
 ChampSim completed all CPUs
 
